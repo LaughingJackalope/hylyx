@@ -1,0 +1,22 @@
+# Build
+build/
+*.pkg
+e2fs/build/
+e2fs/install/
+linux/images/*.tar.*
+web-copy/
+
+# macOS
+.DS_Store
+*.swp
+
+# Credentials
+.env
+*.provisionprofile
+
+# IDE
+.idea/
+*.xcworkspace/
+*.xcuserdata/
+.cursor/
+tmp.prov.plist

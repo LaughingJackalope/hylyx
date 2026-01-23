@@ -1,0 +1,76 @@
+#!/bin/bash
+set -euo pipefail
+
+src="https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-arm64-root.tar.xz"
+pkg="ubuntu-24.04-arm64"
+
+build=$(mktemp -d)
+trap 'rm -rf "$build"' EXIT
+
+cleanup() {
+  umount "$build"/dev/pts 2>/dev/null || true
+  umount "$build"/dev      2>/dev/null || true
+  umount "$build"/proc     2>/dev/null || true
+  umount "$build"/sys      2>/dev/null || true
+}
+trap cleanup EXIT
+
+echo "Downloading and extracting base image"
+wget -O- "$src" | tar -xJpf - -C "$build"
+
+rm -f "$build"/etc/resolv.conf
+cp /etc/resolv.conf "$build"/etc/resolv.conf
+
+mount -t proc   none "$build/proc"
+mount -t sysfs  none "$build/sys"
+mount -o bind /dev "$build/dev"
+mount -t devpts none "$build/dev/pts"
+
+chroot "$build" /bin/bash -e << 'EOF'
+apt-get update
+
+apt-get install -y --no-install-recommends systemd systemd-sysv systemd-timesyncd openssh-server netplan.io \
+util-linux rsync wget curl tcpdump net-tools iputils-ping iproute2 dbus sudo vim-tiny passwd locales
+
+apt-get autoremove --purge cloud-init snapd -y
+rm -rf /var/lib/snapd /var/cache/snapd
+rm -rf /var/lib/apt/lists/*
+apt-get clean
+
+systemctl enable systemd-timesyncd
+systemctl enable ssh
+ssh-keygen -A
+
+passwd -d root
+mkdir -p /root/.ssh
+touch /root/.ssh/authorized_keys
+chmod 700 /root/.ssh
+chmod 600 /root/.ssh/authorized_keys
+chown -R root:root /root/.ssh
+
+sed -i 's/^#*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+sed -i 's/^#*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+cat > /etc/netplan/00-enp.yaml << 'NET'
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    enp0s1:
+      dhcp4: true
+NET
+chmod 644 /etc/netplan/00-enp.yaml
+
+rm -rf /etc/resolv.conf
+:> /etc/fstab
+EOF
+
+cleanup 
+
+echo "Creating compressed tarball"
+mkdir -p images
+(cd "$build" && tar -I 'zstd --threads=0' -Scf "$OLDPWD/images/${pkg}.tar.zst" *)
+du -sh "images/${pkg}.tar.zst"
+rm -rf "$build"
+
+echo "Rootfs ready: images/${pkg}.tar.zst"

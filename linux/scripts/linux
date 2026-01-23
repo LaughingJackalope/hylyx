@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+src=https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.64.tar.xz
+pkg=$(basename "$src" .tar.xz)
+
+build=$(mktemp -d); trap 'rm -rf "$build"' EXIT
+
+wget -O- "$src" | tar -xJf - -C "$build" --strip-components=1
+
+cp config/linux.config "$build/.config"
+
+make -C "$build" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
+make -C "$build" ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j"$(nproc)" Image
+
+mkdir -p images
+tar -I 'xz --threads=0' -Scf "images/$pkg.tar.xz" \
+    -C "$build/arch/arm64/boot" \
+    --transform="s|^Image|$pkg|" Image
+du -sh "images/$pkg.tar.xz" && echo "Build complete: images/$pkg.tar.xz"
+rm -rf "$build"

@@ -1,0 +1,90 @@
+#!/bin/sh
+set -e
+
+src="https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/aarch64/alpine-minirootfs-3.23.2-aarch64.tar.gz"
+pkg="alpine-3.23-aarch64"
+
+build=$(mktemp -d)
+trap 'rm -rf "$build"' EXIT
+
+cleanup() {
+  umount "$build"/dev/pts 2>/dev/null || true
+  umount "$build"/dev      2>/dev/null || true
+  umount "$build"/proc     2>/dev/null || true
+  umount "$build"/sys      2>/dev/null || true
+}
+trap cleanup EXIT
+
+echo "Downloading and extracting base image"
+wget -O- "$src" | tar -xzpf - -C "$build"
+
+rm -f "$build"/etc/resolv.conf
+cp /etc/resolv.conf "$build"/etc/resolv.conf
+
+# clear fstab leftovers
+:> "$build"/etc/fstab
+
+mount -t proc   none "$build/proc"
+mount -t sysfs  none "$build/sys"
+mount -o bind /dev "$build/dev"
+mount -t devpts none "$build/dev/pts"
+
+chroot "$build" /bin/sh -e << 'EOF'
+unset SSL_CERT_DIR
+unset SSL_CERT_FILE
+apk update
+apk add --no-cache openrc openssh util-linux agetty chrony \
+wget tcpdump net-tools rsync musl-locales nano
+
+rc-update add devfs sysinit
+rc-update add dmesg sysinit
+rc-update add swclock boot
+rc-update add hostname boot
+rc-update add bootmisc boot
+rc-update add sshd default
+rc-update add chronyd default
+rc-update add networking boot
+
+echo "makestep 1 -1" >> /etc/chrony/chrony.conf
+
+apk cache clean
+rm -rf /var/cache/apk/*
+
+passwd -d root
+
+mkdir -p /root/.ssh
+touch /root/.ssh/authorized_keys
+chmod 700 /root/.ssh
+chmod 600 /root/.ssh/authorized_keys
+chown -R root:root /root/.ssh
+
+sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+sed -i'' "/^[#]*ttyS0/c hvc0::respawn:/sbin/agetty -L 115200 -a root hvc0 vt100" /etc/inittab
+
+echo "Alpine" > /etc/hostname
+
+cat > /etc/network/interfaces << 'NETPLAN'
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet dhcp
+NETPLAN
+
+cat > /etc/hosts << 'HOSTS'
+127.0.0.1   localhost localhost.localdomain
+127.0.1.1   alpine
+HOSTS
+
+rm -rf /etc/resolv.conf
+EOF
+
+cleanup 
+
+echo "Creating compressed tarball"
+mkdir -p images
+(cd "$build" && tar -I 'zstd --threads=0' -Scf "$OLDPWD/images/${pkg}.tar.zst" *)
+du -sh "images/${pkg}.tar.zst"
+rm -rf "$build"
+
+echo "Rootfs ready: images/${pkg}.tar.zst"

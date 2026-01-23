@@ -1,0 +1,7 @@
+#!/bin/bash
+# Create symlink in /usr/local/bin
+mkdir -p /usr/local/bin
+ln -sf /Applications/Hylyx.app/Contents/MacOS/hylyx /usr/local/bin/hylyx
+
+# User data directory created on first run by the app
+exit 0

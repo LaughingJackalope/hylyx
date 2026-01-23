@@ -1,0 +1,68 @@
+#!/bin/bash
+# Hylyx Uninstaller
+set -e
+
+APP="/Applications/Hylyx.app"
+BIN="/usr/local/bin/hylyx"
+DATA="$HOME/.hylyx"
+
+R='\033[0m' B='\033[1m' G='\033[0;32m' D='\033[2m' Y='\033[0;33m' C='\033[0;36m' E='\033[0;31m'
+
+echo
+echo -e "  ${Y}${B}Uninstall Hylyx${R}"
+echo
+echo -e "  ${D}Choose an option:${R}"
+echo
+echo -e "  ${C}1${R}  Uninstall Hylyx only ${D}(keep VMs)${R}"
+echo -e "      • $APP"
+echo -e "      • $BIN"
+echo
+echo -e "  ${C}2${R}  Uninstall everything ${E}(deletes all VMs)${R}"
+echo -e "      • $APP"
+echo -e "      • $BIN"
+echo -e "      • $DATA/"
+echo
+read -p "  Enter choice [1/2] or q to quit: " -n 1 -r </dev/tty
+echo
+echo
+
+case $REPLY in
+    1)
+        echo -e "  ${D}Removing Hylyx...${R}"
+        sudo rm -rf "$APP"
+        sudo rm -f "$BIN"
+        # Clean up old symlinks from previous versions
+        sudo rm -f /usr/local/bin/e2fsck /usr/local/bin/e2fsck-hy
+        sudo rm -f /usr/local/bin/mke2fs-hy /usr/local/bin/resize2fs /usr/local/bin/resize2fs-hy
+        sudo rm -rf /usr/local/lib/hylyx
+        echo
+        echo -e "  ${G}✓${R} Hylyx uninstalled"
+        echo -e "  ${D}Your VMs are still at: $DATA${R}"
+        echo
+        ;;
+    2)
+        echo -e "  ${E}${B}Warning:${R} This will permanently delete all VMs!"
+        read -p "  Type 'DELETE' to confirm: " -r </dev/tty
+        echo
+        if [[ "$REPLY" == "DELETE" ]]; then
+            echo -e "  ${D}Removing everything...${R}"
+            sudo rm -rf "$APP"
+            sudo rm -f "$BIN"
+            # Clean up old symlinks from previous versions
+            sudo rm -f /usr/local/bin/e2fsck /usr/local/bin/e2fsck-hy
+            sudo rm -f /usr/local/bin/mke2fs-hy /usr/local/bin/resize2fs /usr/local/bin/resize2fs-hy
+            sudo rm -rf /usr/local/lib/hylyx
+            rm -rf "$DATA"
+            echo
+            echo -e "  ${G}✓${R} Hylyx and all VMs uninstalled"
+            echo
+        else
+            echo -e "  ${D}Cancelled${R}"
+            echo
+        fi
+        ;;
+    *)
+        echo -e "  ${D}Cancelled${R}"
+        echo
+        ;;
+esac

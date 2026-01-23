@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+    <title>Hylyx</title>
+    <organization>Samespace Inc.</organization>
+    <options customize="never" require-scripts="false" hostArchitectures="arm64"/>
+    <license file="License.txt" mime-type="text/plain"/>
+    <welcome file="Welcome.rtf" mime-type="text/rtf"/>
+    <conclusion file="Conclusion.rtf" mime-type="text/rtf"/>
+    
+    <choices-outline>
+        <line choice="default">
+            <line choice="dev.ss.hylyx"/>
+        </line>
+    </choices-outline>
+    
+    <choice id="default"/>
+    <choice id="dev.ss.hylyx" visible="false">
+        <pkg-ref id="dev.ss.hylyx"/>
+    </choice>
+    
+    <pkg-ref id="dev.ss.hylyx" version="1.0" onConclusion="none">Hylyx-component.pkg</pkg-ref>
+    
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="13.0"/>
+        </allowed-os-versions>
+    </volume-check>
+</installer-gui-script>

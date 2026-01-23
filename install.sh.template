@@ -1,0 +1,43 @@
+#!/bin/bash
+# Hylyx Installer
+# curl -fsSL {{URL}}/install.sh | bash
+set -e
+
+REPO="{{URL}}"
+
+# Colors
+R='\033[0m' G='\033[0;32m' C='\033[0;36m' D='\033[2m' E='\033[0;31m'
+
+info() { echo -e "  ${D}›${R} $1"; }
+ok() { echo -e "  ${G}✓${R} $1"; }
+die() { echo -e "  ${E}✗${R} $1" >&2; exit 1; }
+
+# Checks
+[[ "$(uname)" == "Darwin" ]] || die "Requires macOS"
+[[ "$(uname -m)" == "arm64" ]] || die "Requires Apple Silicon"
+[[ "$(sw_vers -productVersion | cut -d. -f1)" -ge 13 ]] || die "Requires macOS 13+"
+
+echo
+echo -e "  ${C}Hylyx${R} ${D}— Linux — Rebuilt for the Mac.${R}"
+echo
+
+# Download
+info "Downloading..."
+tmp=$(mktemp -d)
+trap "rm -rf $tmp" EXIT
+curl -fsSL "$REPO/hylyx.tar.gz" | tar -xzf - -C "$tmp"
+
+# Install
+info "Installing..."
+sudo rm -rf /Applications/Hylyx.app
+sudo mv "$tmp/Hylyx.app" /Applications/
+sudo xattr -cr /Applications/Hylyx.app
+
+# Create symlink
+sudo mkdir -p /usr/local/bin
+sudo ln -sf /Applications/Hylyx.app/Contents/MacOS/hylyx /usr/local/bin/hylyx
+
+ok "Installed!"
+
+# Show help
+hylyx help

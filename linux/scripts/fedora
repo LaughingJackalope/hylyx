@@ -1,0 +1,69 @@
+#!/bin/sh
+set -e
+
+src="https://mirror.twds.com.tw/fedora/fedora/linux/releases/43/Container/aarch64/images/Fedora-Container-Base-Generic-43-1.6.aarch64.oci.tar.xz"
+pkg="fedora-43-aarch64"
+
+build=$(mktemp -d)
+trap 'rm -rf "$build"' EXIT
+
+cleanup() {
+  umount "$build"/dev/pts 2>/dev/null || true
+  umount "$build"/dev      2>/dev/null || true
+  umount "$build"/proc     2>/dev/null || true
+  umount "$build"/sys      2>/dev/null || true
+}
+trap cleanup EXIT
+
+echo "Downloading and extracting base image"
+oci=$(mktemp -d)
+wget -O- "$src" | tar -xJpf - -C "$oci"
+layer=$(find "$oci/blobs/sha256" -type f -size +10M | head -1)
+tar -xpf "$layer" -C "$build"
+rm -rf "$oci"
+
+rm -f "$build"/etc/resolv.conf
+cp /etc/resolv.conf "$build"/etc/resolv.conf
+
+mount -t proc   none "$build/proc"
+mount -t sysfs  none "$build/sys"
+mount -o bind /dev "$build/dev"
+mount -t devpts none "$build/dev/pts"
+
+chroot "$build" /bin/bash -e << 'EOF'
+dnf -y update
+dnf -y install systemd iproute hostname util-linux wget curl sudo rsync vim-minimal net-tools openssh-server
+dnf clean all
+
+mkdir -p /etc/systemd/network
+cat > /etc/systemd/network/20-dhcp.network <<'NET'
+[Match]
+Name=enp0s1
+
+[Network]
+DHCP=yes
+NET
+
+systemctl enable systemd-networkd
+systemctl enable systemd-timesyncd
+systemctl enable sshd
+sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+
+passwd -d root
+mkdir -p /root/.ssh
+touch /root/.ssh/authorized_keys
+chmod 600 /root/.ssh/authorized_keys
+chown -R root:root /root/.ssh
+
+:> /etc/fstab
+EOF
+
+cleanup
+
+echo "Creating compressed tarball"
+mkdir -p images
+(cd "$build" && tar -I 'zstd --threads=0' -Scf "$OLDPWD/images/${pkg}.tar.zst" *)
+du -sh "images/${pkg}.tar.zst"
+rm -rf "$build"
+
+echo "Rootfs ready: images/${pkg}.tar.zst"
