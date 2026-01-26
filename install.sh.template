@@ -24,18 +24,18 @@ echo
 # Download
 info "Downloading..."
 tmp=$(mktemp -d)
-trap "rm -rf $tmp" EXIT
-curl -fsSL "$REPO/hylyx.tar.gz" | tar -xzf - -C "$tmp"
+trap "/bin/rm -rf $tmp" EXIT
+/usr/bin/curl -fsSL "$REPO/hylyx.tar.gz" | /usr/bin/tar -xzf - -C "$tmp"
 
 # Install
 info "Installing..."
-sudo rm -rf /Applications/Hylyx.app
-sudo mv "$tmp/Hylyx.app" /Applications/
+sudo /bin/rm -rf /Applications/Hylyx.app
+sudo /bin/mv "$tmp/Hylyx.app" /Applications/
 sudo /usr/bin/xattr -cr /Applications/Hylyx.app
 
 # Create symlink
-sudo mkdir -p /usr/local/bin
-sudo ln -sf /Applications/Hylyx.app/Contents/MacOS/hylyx /usr/local/bin/hylyx
+sudo /bin/mkdir -p /usr/local/bin
+sudo /bin/ln -sf /Applications/Hylyx.app/Contents/MacOS/hylyx /usr/local/bin/hylyx
 
 ok "Installed!"
 
