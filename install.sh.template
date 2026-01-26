@@ -31,7 +31,7 @@ curl -fsSL "$REPO/hylyx.tar.gz" | tar -xzf - -C "$tmp"
 info "Installing..."
 sudo rm -rf /Applications/Hylyx.app
 sudo mv "$tmp/Hylyx.app" /Applications/
-sudo xattr -cr /Applications/Hylyx.app
+sudo /usr/bin/xattr -cr /Applications/Hylyx.app
 
 # Create symlink
 sudo mkdir -p /usr/local/bin
