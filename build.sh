@@ -67,7 +67,7 @@ mkdir -p build/Hylyx.app/Contents/{MacOS,Resources,lib}
 
 cp pkg/Info.plist build/Hylyx.app/Contents/
 cp build/hylyx build/Hylyx.app/Contents/MacOS/
-cp pkg/hylyx.provisionprofile build/Hylyx.app/Contents/embedded.provisionprofile
+[[ -f pkg/hylyx.provisionprofile ]] && cp pkg/hylyx.provisionprofile build/Hylyx.app/Contents/embedded.provisionprofile
 [[ -f pkg/Resources/hylyx.icns ]] && cp pkg/Resources/hylyx.icns build/Hylyx.app/Contents/Resources/
 
 # Helper binaries
